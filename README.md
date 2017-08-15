@@ -27,3 +27,4 @@ not ready for production use
 
 6-Apply changes : docker exec haproxy /docker-restart
 
+nb: remove **--staging --force --debug** from Dockerfile (docker-certissue and docker-certrenew scripts)
