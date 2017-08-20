@@ -1,30 +1,27 @@
 # acme-haproxy docker
-not ready for production use
+not ready for production
 
-`docker run -d --restart always --name haproxy -p 80:80 -p 443:443 -v /path/to/letsencrypt:/root/.acme.sh -v /path/to/haproxy:/etc/haproxy fenrir/acme-haproxy`
+1-Create folders for volumes:
 
- 1-Create data folders:
+ - haproxy configuration folder: `/path/to/haproxy`
+ - letsencrypt certificates folder: `/path/to/certificates`
 
- - haproxy configuration folder: /path/to/haproxy
- - letsencrypt certificates folder: /path/to/letsencrypt
-
-2-Create image: `docker build -t acme-haproxy /path/to/dockerfile/`
-
-3-Start container: `docker run -d --restart always --name haproxy -e SYSLOG=127.0.0.1:514 -p 80:80 -p 443:443 -v /path/to/letsencrypt:/root/.acme.sh -v /path/to/haproxy:/etc/haproxy acme-haproxy`
+2-Start container: `docker run -d --restart always --name haproxy -e SYSLOG=1.2.3.4:514 -e BACKEND=www.exemple.com:8080 -p 80:80 -p 443:443 -v /path/to/certificates:/home -v /path/to/haproxy:/etc/haproxy acme-haproxy`
 
  - default ports are 80/tcp and 443/tcp
- - SYSLOG allows you to configure à syslog server, ie: `-e SYSLOG=syslog.server.ip.addressadresse:514`
+ - ENV `SYSLOG` allows you to configure a syslog server
+ - ENV `BACKEND` allows you to configure default backend
 
-4-To create a certificat : `docker exec haproxy /docker-certissue -d www.domain.com`
+4-To issue a certificate: `docker exec haproxy /docker-certissue -d www.exemple.com`
 
- - you can add other names with -d, ie: `-d www.domain.com -d mail.domain.com -d domaine.com`
+ - you can add other names (ALT) with -d, ie: `-d www.exemple.com -d mail.exemple.com -d exemple.com`
 
-4-Certificat renewal: `docker exec haproxy /docker-certrenew`
+4-Certificate renewal: `docker exec haproxy /docker-certrenew`
 
-5-Install previously create certificate: `docker exec haproxy /docker-certinstall www.domain.com`
+5-Install previously created certificate in haproxy: `docker exec haproxy /docker-certinstall www.exemple.com`
 
- - do it for each certificate, the folder name (/path/to/letsencrypt/<**domain name**>) is the key
+ - do it for each certificate, the folder name (`/path/to/certificates/<**domain name**>`) is the key
 
-6-Apply changes : docker exec haproxy /docker-restart
+6-Apply haproxy configuration changes: `docker exec haproxy /docker-restart`
 
-nb: remove **--staging --force --debug** from Dockerfile (docker-certissue and docker-certrenew scripts)
+7-By default, certificate are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well know certificates
