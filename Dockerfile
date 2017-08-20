@@ -1,17 +1,17 @@
 # fenrir/acme-haproxy
 # HAproxy and LetsEncrypt
-# TODO :zero downtime
-# TODO :staging as ENV
-# TODO :scripts in PATH
-# TODO :...
+# TODO: zero downtime
+# TODO: scripts in PATH
+# TODO: ...
 #
-# VERSION 0.5.0
+# VERSION 0.8.1
 #
 FROM debian:stretch-slim
 MAINTAINER Fenrir <dont@want.spam>
 
 ENV	DEBIAN_FRONTEND noninteractive
 ENV SYSLOG 127.0.0.1:514
+ENV BACKEND www.example.com:8080
 
 # Configure APT and install packages
 RUN	echo 'APT::Install-Suggests "false";' > /etc/apt/apt.conf &&\
@@ -28,12 +28,11 @@ RUN	echo 'APT::Install-Suggests "false";' > /etc/apt/apt.conf &&\
 	apt-get autoclean && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /tmp/* /var/tmp/*
 
 # Configure docker
-RUN	mv /etc/haproxy /etc/haproxy.dist &&\
-	mkdir -p /run/haproxy &&\
-	mkdir -p /root/.acme.sh &&\
+RUN	mv /etc/haproxy /etc/haproxy.dist && mkdir -p /run/haproxy &&\
+
 # Create entrypoint
 	echo "#!/bin/bash" > /docker-entrypoint &&\
-# Create haproxy.cfg
+## Create haproxy.cfg
 	echo "if [ ! -f /etc/haproxy/haproxy.cfg ]; then" >> /docker-entrypoint &&\
 	echo "	mkdir -p /etc/haproxy/ssl" >> /docker-entrypoint &&\
 	echo "	cp -r /etc/haproxy.dist/* /etc/haproxy/." >> /docker-entrypoint &&\
@@ -56,37 +55,53 @@ RUN	mv /etc/haproxy /etc/haproxy.dist &&\
 	echo "	echo 'backend letsencrypt_backend' >> /etc/haproxy/haproxy.cfg" >> /docker-entrypoint &&\
 	echo "	echo '	server letsencrypt 127.0.0.1:11444' >> /etc/haproxy/haproxy.cfg" >> /docker-entrypoint &&\
 	echo "	echo 'backend website_backend' >> /etc/haproxy/haproxy.cfg" >> /docker-entrypoint &&\
-	echo "	echo '	server server01 127.0.0.1:11080' >> /etc/haproxy/haproxy.cfg" >> /docker-entrypoint &&\
+	echo "	echo '	server server01 $BACKEND' >> /etc/haproxy/haproxy.cfg" >> /docker-entrypoint &&\
 	echo "fi" >> /docker-entrypoint &&\
-# Create temp cert file
+## Create temp cert file
 	echo "if [ ! -f /etc/haproxy/ssl/temp.pem ]; then" >> /docker-entrypoint &&\
-	echo "	openssl req -subj '/CN=temp/O=ora/C=RY' -new -newkey rsa:2048 -sha256 -days 100 -nodes -x509 -keyout /tmp/temp.key -out /tmp/temp.crt" >> /docker-entrypoint &&\
+	echo "	openssl req -subj '/CN=temp/O=org/C=RY' -new -newkey rsa:2048 -sha256 -days 100 -nodes -x509 -keyout /tmp/temp.key -out /tmp/temp.crt" >> /docker-entrypoint &&\
 	echo "	cat /tmp/temp.key /tmp/temp.crt > /etc/haproxy/ssl/temp.pem" >> /docker-entrypoint &&\
 	echo "fi" >> /docker-entrypoint &&\
-# Install acme.sh
+## Install acme.sh
 	echo "if [ ! -f /root/.acme.sh/acme.sh ]; then" >> /docker-entrypoint &&\
-	echo "	curl -o /root/.acme.sh/acme.sh https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh" >> /docker-entrypoint &&\
-	echo "	chmod +x /root/.acme.sh/acme.sh" >> /docker-entrypoint &&\
+	echo "  mkdir /home/certificates" >> /docker-entrypoint &&\
+	echo "	curl -o /tmp/acme.sh https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh" >> /docker-entrypoint &&\
+	echo "	chmod +x /tmp/acme.sh" >> /docker-entrypoint &&\
+	echo "	cd /tmp" >> /docker-entrypoint &&\
+	echo "	./acme.sh --install --nocron --certhome /home/certificates" >> /docker-entrypoint &&\
+## Activate staging mode
+	echo "	echo '####################################' > /home/STAGING.readme" >> /docker-entrypoint &&\
+	echo "	echo 'Delete this file in order to create valide certificates.' >> /home/STAGING.readme" >> /docker-entrypoint &&\
+	echo "	echo 'By default all certificates will be signed by Fake LE Intermediate X1 in order to avoid quota problems.' >> /home/STAGING.readme" >> /docker-entrypoint &&\
 	echo "fi" >> /docker-entrypoint &&\
+## Launch haproxy
 	echo "/usr/sbin/haproxy-systemd-wrapper -f /etc/haproxy/haproxy.cfg -p /run/haproxy.pid &" >> /docker-entrypoint &&\
 	echo "sleep infinity" >> /docker-entrypoint &&\
 	chmod +x /docker-entrypoint &&\
 
 # Certificate issue
 	echo "#!/bin/bash" > /docker-certissue &&\
-	echo '/root/.acme.sh/acme.sh --issue --staging --standalone --httpport 11444 --force --debug $@' >> /docker-certissue &&\
+	echo "if [ ! -f /home/STAGING.readme ]; then" >> /docker-certissue &&\
+	echo '  /root/.acme.sh/acme.sh --issue --standalone --httpport 11444 --force $@' >> /docker-certissue &&\
+	echo "else" >> /docker-certissue &&\
+	echo '  /root/.acme.sh/acme.sh --issue --staging --standalone --httpport 11444 --force --debug $@' >> /docker-certissue &&\
+	echo "fi" >> /docker-certissue &&\
 	chmod +x /docker-certissue &&\
 
 # Certificate renew
 	echo "#!/bin/bash" > /docker-certrenew &&\
-	echo "/root/.acme.sh/acme.sh --renew-all --staging --standalone --httpport 11444 --force --debug" >> /docker-certrenew &&\
+	echo "if [ ! -f /home/STAGING.readme ]; then" >> /docker-certrenew &&\
+	echo "  /root/.acme.sh/acme.sh --renew-all --standalone --httpport 11444" >> /docker-certrenew &&\
+	echo "else" >> /docker-certrenew &&\
+	echo "  /root/.acme.sh/acme.sh --renew-all --staging --standalone --httpport 11444 --force --debug" >> /docker-certrenew &&\
+	echo "fi" >> /docker-certrenew &&\
 	chmod +x /docker-certrenew &&\
 
 # Certificate install
 	echo "#!/bin/bash" > /docker-certinstall &&\
 	echo 'DOMAIN=$1' >> /docker-certinstall &&\
-	echo 'ACMESTORE="/root/.acme.sh"' >> /docker-certinstall &&\
-	echo 'HAPROXYSTORE="/etc/haproxy/ssl"' >> /docker-certinstall &&\
+	echo "ACMESTORE='/home/certificates'" >> /docker-certinstall &&\
+	echo "HAPROXYSTORE='/etc/haproxy/ssl'" >> /docker-certinstall &&\
 	echo 'if [ -f $ACMESTORE/$DOMAIN/$DOMAIN.cer ]; then' >> /docker-certinstall &&\
 	echo '	cat $ACMESTORE/$DOMAIN/$DOMAIN.key $ACMESTORE/$DOMAIN/$DOMAIN.cer $ACMESTORE/$DOMAIN/ca.cer > $HAPROXYSTORE/$DOMAIN.pem' >> /docker-certinstall &&\
 	echo "fi" >> /docker-certinstall &&\
@@ -101,7 +116,7 @@ RUN	mv /etc/haproxy /etc/haproxy.dist &&\
 
 EXPOSE 80/tcp 443/tcp
 	
-VOLUME ["/root/.acme.sh", "/etc/haproxy"]
+VOLUME ["/home", "/etc/haproxy"]
 
 ENTRYPOINT	["/docker-entrypoint"]
 # ENTRYPOINT	["/bin/bash"]
