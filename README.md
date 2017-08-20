@@ -25,3 +25,5 @@ not ready for production
 6-Apply haproxy configuration changes: `docker exec haproxy /docker-restart`
 
 7-By default, certificate are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well know certificates
+
+nb: the haproxy configuration should be tuned
