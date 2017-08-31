@@ -1,6 +1,6 @@
 # acme-haproxy docker
 
-By default, certificate are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well know certificates
+By default, certificates are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well know certificates
 
 1-Create folders for volumes:
 
@@ -11,13 +11,15 @@ By default, certificate are in staging mode to avoid quota outaged, remove or re
 
  - default ports are 80/tcp and 443/tcp
  - ENV `SYSLOG` allows you to configure a syslog server
- - ENV `BACKEND` allows you to configure default backend
+ - ENV `BACKEND` allows you to configure the default backend
 
 4-To issue a certificate: `docker exec haproxy /docker-certissue -d www.example.com`
 
  - you can add other names (ALT) with -d, ie: `-d www.example.com -d mail.example.com -d example.com`
 
 4-Certificate renewal: `docker exec haproxy /docker-certrenew`
+ 
+ - all certificates will renewed
 
 5-Install previously created certificate in haproxy: `docker exec haproxy /docker-certinstall www.example.com`
 
