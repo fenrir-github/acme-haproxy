@@ -1,6 +1,6 @@
 # acme-haproxy docker
 
-By default, certificates are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well know certificates
+By default, certificates are in staging mode to avoid quota outaged, remove or rename the file `/path/to/certificates/STAGING.readme` in order to issue well-known certificates
 
 1-Create folders for volumes:
 
@@ -19,7 +19,7 @@ By default, certificates are in staging mode to avoid quota outaged, remove or r
 
 4-Certificate renewal: `docker exec haproxy /docker-certrenew`
  
- - all certificates will renewed
+ - all certificates will be renewed
 
 5-Install previously created certificate in haproxy: `docker exec haproxy /docker-certinstall www.example.com`
 
